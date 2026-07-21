@@ -60,3 +60,10 @@ None — nickname-only. See `/app/memory/test_credentials.md`.
 - ✅ Frontend /mod route with sign-in gate (sessionStorage) + stats cards + filter tabs + resolve/reopen actions + repeat-offender highlight
 - ✅ Landing footer discoverability link "moderator ↗"
 - ✅ 13/13 new backend mod tests + 18 prior tests passing; UI verified end-to-end
+
+## Iteration 3 & 4 (2026-02)
+- ✅ Bug fix: Landing page channel grid tiles (GEN + A–R) and 3 feature cards are now clickable — navigate to the target room; if no nickname, focus input and remember target (iter 3, 11/11)
+- ✅ P1: Server-side rate limiter on `message:send` (MIN_GAP=350ms, BURST=5/5s, SUSTAINED=30/60s); per-socket sliding window; applies to public + stranger rooms; bucket cleared on disconnect. Frontend maps rule → human toast.
+- ✅ P2: Sidebar channel clicks now push URL query params (?room=/tab=stranger); direct-link `/chat?room=section-k` opens that section on mount. General room keeps URL clean.
+- ✅ P2: Moderator console pagination (page size 25; prev/next controls; `showing X–Y of Z` + `page N / M`; filter change resets to page 1). Backend `/api/mod/reports?limit&offset` already supported.
+- ✅ 42/42 backend tests + full UI verification (iter 4).
