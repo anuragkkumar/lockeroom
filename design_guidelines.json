@@ -1,0 +1,124 @@
+{
+  "theme": "dark",
+  "typography": {
+    "fonts": [
+      {
+        "family": "IBM Plex Sans",
+        "usage": "Primary UI, chat messages, standard buttons",
+        "weights": ["400", "500", "600"],
+        "import_url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      },
+      {
+        "family": "JetBrains Mono",
+        "usage": "Channel names, nicknames, online counts, hero heading, random stranger labels",
+        "weights": ["400", "700", "800"],
+        "import_url": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap"
+      }
+    ],
+    "hierarchy": {
+      "h1": "text-5xl md:text-6xl font-black tracking-tighter font-['JetBrains_Mono']",
+      "h2": "text-3xl md:text-4xl font-bold tracking-tight font-['JetBrains_Mono']",
+      "h3": "text-xl md:text-2xl font-bold tracking-tight",
+      "body": "text-base leading-relaxed font-['IBM_Plex_Sans']",
+      "channel_name": "text-sm font-bold tracking-wider uppercase font-['JetBrains_Mono']",
+      "small_label": "text-xs tracking-[0.2em] uppercase"
+    }
+  },
+  "colors": {
+    "palette": {
+      "background_base": "#1e1f22",
+      "background_sidebar": "#2b2d31",
+      "background_chat": "#313338",
+      "foreground": "#f2f3f5",
+      "muted": "#949ba4",
+      "accent_green": "#23a559",
+      "accent_blurple": "#5865f2",
+      "danger": "#da373c"
+    },
+    "instructions": "Use 'background_sidebar' for the left sidebar. Use 'background_chat' for the main chat panel. 'accent_green' is STRICTLY for unread badges and online presence indicators. 'accent_blurple' is for primary CTAs to match the Discord aesthetic."
+  },
+  "visual_enhancers": {
+    "glassmorphism": "Avoid glassmorphism. Stick to solid opaque backgrounds for the chat interface to ensure high legibility and Discord-like performance.",
+    "borders": "Use subtle 1px borders (border-[#1e1f22]) to separate sections.",
+    "shadows": "Ambient shadows only for modals, popovers, or floating menus. Main layout should remain flat.",
+    "textures": "Add subtle noise overlay on the landing page background."
+  },
+  "components": {
+    "sidebar": {
+      "background": "bg-[#2b2d31]",
+      "width": "w-72",
+      "behavior": "Fixed on desktop, collapsible via hamburger menu on mobile",
+      "items": {
+        "channel_link": "flex items-center gap-2 px-3 py-2 rounded-md text-[#949ba4] hover:bg-[#313338] hover:text-[#f2f3f5] transition-colors",
+        "active_channel": "bg-[#404249] text-white",
+        "unread_badge": "w-2 h-2 rounded-full bg-[#23a559]"
+      }
+    },
+    "chat_panel": {
+      "background": "bg-[#313338]",
+      "header": "h-14 border-b border-[#1e1f22] flex items-center px-4 bg-[#313338] justify-between",
+      "message_feed": "flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin scrollbar-thumb-[#1e1f22]",
+      "message_input": "bg-[#383a40] rounded-lg px-4 py-3 text-[#f2f3f5] placeholder-[#949ba4] focus:outline-none focus:ring-1 focus:ring-[#5865f2] w-full"
+    },
+    "buttons": {
+      "primary": "bg-[#5865f2] hover:bg-[#4752c4] text-white font-medium px-6 py-2 rounded-md transition-colors",
+      "danger": "bg-[#da373c] hover:bg-[#a12828] text-white font-medium px-4 py-2 rounded-md transition-colors",
+      "secondary": "bg-[#4e5058] hover:bg-[#6d6f78] text-white font-medium px-4 py-2 rounded-md transition-colors"
+    }
+  },
+  "layouts": {
+    "landing_page": "100vh flex flex-col items-center justify-center relative overflow-hidden. Center the nickname entry card. Set hero background to dim overlay over abstract connection image.",
+    "app_layout": "h-screen flex overflow-hidden. Left sidebar (w-72, flex-shrink-0), right chat area (flex-1 flex flex-col).",
+    "transparency_rule": "DO NOT use complete transparent background in headers, overlays, or any surface that has content under it. Provide solid fallbacks."
+  },
+  "motion": {
+    "hover_states": "Buttons and links should have background color transitions (duration 200ms ease).",
+    "sidebar_toggle": "Slide-in from left for mobile (transform transition).",
+    "messages": "New messages should smoothly slide up into view. Use subtle entrance animations."
+  },
+  "accessibility": {
+    "contrast": "Ensure text against the dark backgrounds meets at least AA standards. Muted text should be readable.",
+    "focus_states": "All inputs and buttons must have explicit focus rings.",
+    "testing": "All interactive and key informational elements MUST include a `data-testid` attribute to facilitate robust automated testing."
+  },
+  "media": {
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1644088379091-d574269d422f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRpZ2l0YWwlMjBjb25uZWN0aW9ufGVufDB8fHx8MTc4NDY0MzU3OHww&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract digital connection - Blue lines and dots",
+        "usage": "Background image for the Landing Page. Wrap in a container with bg-black/80 overlay to keep text highly legible."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1623479322729-28b25c16b011?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwxfHxzdHVkZW50cyUyMGNvZGluZyUyMGxhdGUlMjBuaWdodHxlbnwwfHx8fDE3ODQ2NDM1Nzh8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Student coding late night",
+        "usage": "Accent image for feature cards on the landing page."
+      }
+    ]
+  },
+  "icons": {
+    "library": "lucide-react",
+    "instructions": "Use lucide-react. Required icons: Hash (channel), Users (online count), Menu (hamburger), Send (message input), SkipForward (random stranger), Flag (report)."
+  },
+  "instructions_to_main_agent": [
+    "Prioritize building the Landing page and Chat layout as distinct routes or conditional renders using React router if necessary, or just state management.",
+    "Create Javascript components (.jsx/.js files), DO NOT use .tsx files.",
+    "Implement the Discord 3-tier dark colors: Sidebar is #2b2d31, Chat area is #313338, Chat header is #313338 with bottom border #1e1f22.",
+    "In the Sidebar, group 'General' and 'Section A-R' under a tiny uppercase 'CHANNELS' label with JetBrains Mono.",
+    "Pin 'Random Stranger' at the bottom of the sidebar. Give it a distinct icon or separator.",
+    "In the Chat Area, show a list of messages. Each message should have the User's Nickname (bold) and timestamp on the top line, and the message content below it. Mimic Discord's compact view.",
+    "The 'Green accent' for unread badges MUST be #23a559. Place it next to the channel name in the sidebar for unread states.",
+    "The input area should resemble Discord's: a rounded rectangular pill spanning most of the bottom width.",
+    "Ensure 'data-testid' is added to all interactive elements."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Do not make generic centered layouts. The chat app layout is strictly 2-column on desktop (sidebar + flex-grow chat).",
+    "You MUST NOT apply universal transition. Eg: `transition: all`. Target specific properties.",
+    "You MUST NOT center align the app container. No text-center on the body or main wrapper.",
+    "Always use modern button styles. For the landing page, use pill-shaped or slightly rounded buttons with strong contrast.",
+    "Every interaction needs micro-animations - hover states for channels, inputs, buttons.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Use sonner for toasts notifications.",
+    "Missing categories = main agent will use placeholder text which is FORBIDDEN. Use the provided Unsplash URLs."
+  ]
+}
