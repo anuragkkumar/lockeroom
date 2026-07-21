@@ -38,6 +38,16 @@ db.exec(`
   );
 `);
 
+// Migration: add columns if the table pre-existed without them
+try {
+  const cols = db.prepare("PRAGMA table_info(reports)").all().map((c) => c.name);
+  if (!cols.includes('resolved')) db.exec('ALTER TABLE reports ADD COLUMN resolved INTEGER NOT NULL DEFAULT 0');
+  if (!cols.includes('resolved_at')) db.exec('ALTER TABLE reports ADD COLUMN resolved_at INTEGER');
+  if (!cols.includes('note')) db.exec('ALTER TABLE reports ADD COLUMN note TEXT');
+} catch (e) {
+  console.warn('[cs-chatroom] reports migration warning:', e.message);
+}
+
 // Prepared statements
 const stmts = {
   insertMessage: db.prepare(
@@ -64,6 +74,31 @@ const stmts = {
   ),
   insertReport: db.prepare(
     'INSERT INTO reports (reporter_device_id, reported_device_id, room, created_at) VALUES (?, ?, ?, ?)'
+  ),
+  listReports: db.prepare(
+    `SELECT id, reporter_device_id, reported_device_id, room, created_at, resolved, resolved_at, note
+     FROM reports
+     WHERE (@status = 'all')
+        OR (@status = 'open' AND resolved = 0)
+        OR (@status = 'resolved' AND resolved = 1)
+     ORDER BY created_at DESC
+     LIMIT @limit OFFSET @offset`
+  ),
+  countReports: db.prepare(
+    `SELECT
+       COUNT(*) as total,
+       SUM(CASE WHEN resolved = 0 THEN 1 ELSE 0 END) as open,
+       SUM(CASE WHEN resolved = 1 THEN 1 ELSE 0 END) as resolved
+     FROM reports`
+  ),
+  countReportsForDevice: db.prepare(
+    'SELECT COUNT(*) as c FROM reports WHERE reported_device_id = ?'
+  ),
+  resolveReport: db.prepare(
+    'UPDATE reports SET resolved = 1, resolved_at = ?, note = ? WHERE id = ?'
+  ),
+  reopenReport: db.prepare(
+    'UPDATE reports SET resolved = 0, resolved_at = NULL WHERE id = ?'
   ),
 };
 
@@ -98,6 +133,48 @@ function insertReport(reporter, reported, room) {
   stmts.insertReport.run(reporter, reported, room || null, Date.now());
 }
 
+function listReports({ status = 'open', limit = 50, offset = 0 } = {}) {
+  const rows = stmts.listReports.all({
+    status,
+    limit: Math.min(200, Math.max(1, Number(limit) || 50)),
+    offset: Math.max(0, Number(offset) || 0),
+  });
+  // Enrich with per-device report counts
+  const deviceCounts = new Map();
+  for (const r of rows) {
+    if (!deviceCounts.has(r.reported_device_id)) {
+      deviceCounts.set(
+        r.reported_device_id,
+        stmts.countReportsForDevice.get(r.reported_device_id).c
+      );
+    }
+  }
+  return rows.map((r) => ({
+    ...r,
+    resolved: !!r.resolved,
+    reported_device_report_count: deviceCounts.get(r.reported_device_id) || 0,
+  }));
+}
+
+function reportStats() {
+  const row = stmts.countReports.get();
+  return {
+    total: row.total || 0,
+    open: row.open || 0,
+    resolved: row.resolved || 0,
+  };
+}
+
+function resolveReport(id, note = '') {
+  const info = stmts.resolveReport.run(Date.now(), (note || '').toString().slice(0, 500), id);
+  return info.changes > 0;
+}
+
+function reopenReport(id) {
+  const info = stmts.reopenReport.run(id);
+  return info.changes > 0;
+}
+
 module.exports = {
   db,
   insertMessage,
@@ -106,4 +183,8 @@ module.exports = {
   markRead,
   getUnreadCount,
   insertReport,
+  listReports,
+  reportStats,
+  resolveReport,
+  reopenReport,
 };

@@ -12,9 +12,14 @@ const {
   markRead,
   getUnreadCount,
   insertReport,
+  listReports,
+  reportStats,
+  resolveReport,
+  reopenReport,
 } = require('./db');
 
 const PORT = parseInt(process.env.PORT || '8001', 10);
+const MOD_TOKEN = process.env.MOD_TOKEN || '';
 
 // Room definitions
 const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
@@ -49,6 +54,51 @@ app.get('/api/messages/:room', (req, res) => {
   }
   const messages = getLatestMessages(room, 50);
   res.json({ room, messages });
+});
+
+// -------- Moderator endpoints --------
+function requireMod(req, res, next) {
+  if (!MOD_TOKEN) {
+    return res.status(503).json({ error: 'moderator disabled: MOD_TOKEN not configured' });
+  }
+  const provided =
+    req.get('x-mod-token') ||
+    (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (provided !== MOD_TOKEN) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  next();
+}
+
+app.post('/api/mod/verify', (req, res) => {
+  const provided = (req.body && req.body.token) || req.get('x-mod-token') || '';
+  if (!MOD_TOKEN) return res.status(503).json({ ok: false, error: 'mod disabled' });
+  if (provided !== MOD_TOKEN) return res.status(401).json({ ok: false, error: 'invalid token' });
+  res.json({ ok: true });
+});
+
+app.get('/api/mod/reports', requireMod, (req, res) => {
+  const status = ['open', 'resolved', 'all'].includes(req.query.status) ? req.query.status : 'open';
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+  const reports = listReports({ status, limit, offset });
+  const stats = reportStats();
+  res.json({ status, limit, offset, stats, reports });
+});
+
+app.post('/api/mod/reports/:id/resolve', requireMod, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const note = (req.body && req.body.note) || '';
+  const ok = resolveReport(id, note);
+  if (!ok) return res.status(404).json({ ok: false, error: 'not found' });
+  res.json({ ok: true, id });
+});
+
+app.post('/api/mod/reports/:id/reopen', requireMod, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const ok = reopenReport(id);
+  if (!ok) return res.status(404).json({ ok: false, error: 'not found' });
+  res.json({ ok: true, id });
 });
 
 // -------- HTTP + Socket.IO --------

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Landing from '@/pages/Landing';
 import Chat from '@/pages/Chat';
+import Moderator from '@/pages/Moderator';
 import { getNickname } from '@/lib/identity';
 import { Toaster } from 'sonner';
 import '@/App.css';
@@ -27,6 +28,7 @@ function App() {
             </RequireNickname>
           }
         />
+        <Route path="/mod" element={<Moderator />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster theme="dark" position="top-center" richColors closeButton />
