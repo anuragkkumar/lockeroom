@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getSocket, disconnectSocket } from '@/lib/socket';
 import { getDeviceId, getNickname, clearNickname } from '@/lib/identity';
 import { ALL_PUBLIC_ROOMS, GENERAL_ROOM, SECTION_ROOMS, isPublicRoom, STRANGER_ID } from '@/lib/rooms';
@@ -11,12 +11,22 @@ import StrangerPanel from '@/components/chat/StrangerPanel';
 import { Menu } from 'lucide-react';
 import { toast } from 'sonner';
 
+function resolveInitialRoom(searchParams) {
+  const tab = searchParams.get('tab');
+  if (tab === 'stranger') return STRANGER_ID;
+  const room = searchParams.get('room');
+  if (room && (room === 'general' || isPublicRoom(room))) return room;
+  return 'general';
+}
+
 export default function Chat() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const nickname = getNickname();
   const deviceId = getDeviceId();
 
-  const [activeRoom, setActiveRoom] = useState('general'); // 'general' | 'section-x' | '__stranger__'
+  const initialRoom = useMemo(() => resolveInitialRoom(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [activeRoom, setActiveRoom] = useState(initialRoom); // 'general' | 'section-x' | '__stranger__'
   const [messagesByRoom, setMessagesByRoom] = useState({}); // { roomId: [msgs] }
   const [onlineByRoom, setOnlineByRoom] = useState({}); // { roomId: number }
   const [unreadByRoom, setUnreadByRoom] = useState({}); // { roomId: number }
@@ -42,6 +52,15 @@ export default function Chat() {
       return;
     }
   }, [nickname, navigate]);
+
+  // Clear query params after they've been used to resolve initial room
+  useEffect(() => {
+    if (searchParams.get('room') || searchParams.get('tab')) {
+      const next = new URLSearchParams();
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Socket setup
   useEffect(() => {

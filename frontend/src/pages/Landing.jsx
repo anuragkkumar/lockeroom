@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Hash, Users, Dice5, ArrowRight, MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,24 +15,44 @@ const FEATURES = [
     title: 'section-rooms',
     subtitle: 'A → R',
     desc: '18 dedicated channels, one per CS section. Drop in, ask a doubt, share notes.',
+    target: 'section-a',
   },
   {
     icon: MessageSquareText,
     title: 'general',
     subtitle: 'department-wide',
     desc: 'Everyone from the department. Announcements, memes, late-night existentialism.',
+    target: 'general',
   },
   {
     icon: Dice5,
     title: 'random-stranger',
     subtitle: 'omegle-style',
     desc: 'One-to-one chat with a random peer. Skip anytime. Ephemeral by design.',
+    target: '__stranger__',
   },
 ];
+
+// Channel grid tiles: GEN + A..R
+const GRID_TILES = [
+  { label: 'GEN', target: 'general' },
+  ...'ABCDEFGHIJKLMNOPQR'.split('').map((l) => ({
+    label: l,
+    target: `section-${l.toLowerCase()}`,
+  })),
+];
+
+function buildChatPath(target) {
+  if (!target) return '/chat';
+  if (target === '__stranger__') return '/chat?tab=stranger';
+  return `/chat?room=${encodeURIComponent(target)}`;
+}
 
 export default function Landing() {
   const navigate = useNavigate();
   const [nick, setNick] = useState('');
+  const [pendingTarget, setPendingTarget] = useState(null);
+  const nickInputRef = useRef(null);
 
   useEffect(() => {
     // Seed device id early
@@ -40,6 +60,21 @@ export default function Landing() {
     const existing = getNickname();
     if (existing) setNick(existing);
   }, []);
+
+  const enterChat = (target) => {
+    const existing = getNickname();
+    if (existing) {
+      navigate(buildChatPath(target));
+      return;
+    }
+    // No nickname yet: prompt user to pick one, remember the target
+    setPendingTarget(target);
+    toast.message('Pick a nickname to continue', {
+      description: 'It only takes a second — no signup required.',
+    });
+    nickInputRef.current?.focus();
+    nickInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const submit = (e) => {
     e.preventDefault();
@@ -49,7 +84,7 @@ export default function Landing() {
       return;
     }
     setNickname(cleaned);
-    navigate('/chat');
+    navigate(buildChatPath(pendingTarget));
   };
 
   return (
@@ -114,6 +149,7 @@ export default function Landing() {
                 <Input
                   id="nick-input"
                   data-testid="nickname-input"
+                  ref={nickInputRef}
                   value={nick}
                   onChange={(e) => setNick(e.target.value)}
                   placeholder="cs-ghost-42"
@@ -148,13 +184,16 @@ export default function Landing() {
                 <span className="text-[#949ba4] text-sm">rooms live</span>
               </div>
               <div className="mt-6 grid grid-cols-6 gap-1.5">
-                {['GEN', ...'ABCDEFGHIJKLMNOPQR'.split('')].map((l) => (
-                  <div
-                    key={l}
-                    className="aspect-square rounded-md bg-[#313338] border border-[#1e1f22] flex items-center justify-center font-mono-ui text-[10px] font-bold text-[#949ba4] hover:text-[#23a559] hover:border-[#23a559]/40 transition-colors"
+                {GRID_TILES.map(({ label, target }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => enterChat(target)}
+                    data-testid={`grid-tile-${target}`}
+                    className="aspect-square rounded-md bg-[#313338] border border-[#1e1f22] flex items-center justify-center font-mono-ui text-[10px] font-bold text-[#949ba4] hover:text-[#23a559] hover:border-[#23a559]/40 hover:bg-[#3a3c42] transition-colors cursor-pointer"
                   >
-                    {l}
-                  </div>
+                    {label}
+                  </button>
                 ))}
               </div>
               <div className="mt-6 flex items-center gap-3 pt-6 border-t border-[#1e1f22]">
@@ -169,11 +208,13 @@ export default function Landing() {
 
         {/* Feature cards */}
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {FEATURES.map(({ icon: Icon, title, subtitle, desc }, i) => (
-            <div
+          {FEATURES.map(({ icon: Icon, title, subtitle, desc, target }, i) => (
+            <button
               key={title}
+              type="button"
+              onClick={() => enterChat(target)}
               data-testid={`feature-card-${title}`}
-              className="group relative rounded-xl border border-[#1e1f22] bg-[#2b2d31]/70 p-6 hover:border-[#5865f2]/40 hover:bg-[#2b2d31] transition-colors"
+              className="group relative text-left rounded-xl border border-[#1e1f22] bg-[#2b2d31]/70 p-6 hover:border-[#5865f2]/40 hover:bg-[#2b2d31] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#5865f2]/60"
             >
               <div className="flex items-start justify-between">
                 <div className="w-11 h-11 rounded-lg bg-[#1e1f22] flex items-center justify-center group-hover:bg-[#5865f2]/20 transition-colors">
@@ -190,7 +231,10 @@ export default function Landing() {
                 {subtitle}
               </p>
               <p className="mt-4 text-sm text-[#b5bac1] leading-relaxed">{desc}</p>
-            </div>
+              <span className="mt-4 inline-flex items-center gap-1 font-mono-ui text-[10px] uppercase tracking-[0.2em] text-[#5865f2] opacity-0 group-hover:opacity-100 transition-opacity">
+                open <ArrowRight className="w-3 h-3" />
+              </span>
+            </button>
           ))}
         </div>
 
