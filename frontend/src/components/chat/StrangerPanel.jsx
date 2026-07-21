@@ -1,4 +1,5 @@
-import { Dice5, SkipForward, Flag, X, Loader2, Search } from 'lucide-react';
+import { Dice5, SkipForward, Flag, X, Loader2, Search, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import MessageFeed from './MessageFeed';
 import MessageInput from './MessageInput';
 
@@ -67,6 +68,17 @@ export default function StrangerPanel({
           >
             <X className="w-3.5 h-3.5" /> cancel
           </button>
+        )}
+        {state === 'idle' && (
+          <Link
+            to="/"
+            data-testid="stranger-home-btn"
+            title="Back to home"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#dbdee1] bg-[#404249] hover:bg-[#4e5058] transition-colors"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">home</span>
+          </Link>
         )}
       </div>
 

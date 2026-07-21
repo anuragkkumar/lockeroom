@@ -1,4 +1,5 @@
-import { Hash, Dice5, LogOut, Wifi, WifiOff, X } from 'lucide-react';
+import { Hash, Dice5, LogOut, Wifi, WifiOff, X, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { GENERAL_ROOM, SECTION_ROOMS, STRANGER_ID } from '@/lib/rooms';
 import { cn } from '@/lib/utils';
 
@@ -71,14 +72,19 @@ export default function Sidebar({
       >
         {/* Header */}
         <div className="h-14 px-4 flex items-center justify-between border-b border-[#1e1f22]">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-[#5865f2] flex items-center justify-center">
+          <Link
+            to="/"
+            data-testid="sidebar-home-link"
+            title="Back to home (keeps your nickname)"
+            className="flex items-center gap-2 group focus:outline-none rounded-md -mx-1 px-1 py-1 hover:bg-[#35373c] transition-colors"
+          >
+            <div className="w-7 h-7 rounded-md bg-[#5865f2] flex items-center justify-center group-hover:bg-[#4752c4] transition-colors">
               <Hash className="w-4 h-4 text-white" />
             </div>
-            <span className="font-mono-ui font-extrabold tracking-tight text-[15px]">
+            <span className="font-mono-ui font-extrabold tracking-tight text-[15px] text-[#f2f3f5]">
               cs<span className="text-[#23a559]">.</span>chatroom
             </span>
-          </div>
+          </Link>
           <button
             onClick={onClose}
             className="md:hidden p-1 rounded hover:bg-[#404249] text-[#949ba4]"
@@ -175,7 +181,7 @@ export default function Sidebar({
           <button
             onClick={onLogout}
             data-testid="logout-btn"
-            title="Leave and clear nickname"
+            title="Sign out — clears your nickname and returns to landing"
             className="p-2 rounded-md text-[#949ba4] hover:text-[#f2f3f5] hover:bg-[#404249] transition-colors"
           >
             <LogOut className="w-4 h-4" />

@@ -1,4 +1,5 @@
-import { Hash, Users } from 'lucide-react';
+import { Hash, Users, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function ChatHeader({ label, online, connected }) {
   return (
@@ -12,7 +13,7 @@ export default function ChatHeader({ label, online, connected }) {
           {label}
         </h2>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <div
           className="flex items-center gap-1.5 text-xs font-mono-ui text-[#b5bac1]"
           data-testid="chat-header-online"
@@ -27,6 +28,15 @@ export default function ChatHeader({ label, online, connected }) {
           <span className="tabular-nums">{online}</span>
           <span className="hidden sm:inline text-[#949ba4]">online</span>
         </div>
+        <Link
+          to="/"
+          data-testid="chat-header-home-btn"
+          title="Back to home"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#dbdee1] bg-[#404249] hover:bg-[#4e5058] transition-colors"
+        >
+          <Home className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">home</span>
+        </Link>
       </div>
     </div>
   );
