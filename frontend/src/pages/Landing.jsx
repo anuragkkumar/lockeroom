@@ -198,9 +198,18 @@ export default function Landing() {
           <p className="font-mono-ui text-xs text-[#5c6069]">
             &copy; cs.chatroom · no accounts · no tracking · just chat
           </p>
-          <p className="font-mono-ui text-xs text-[#5c6069]">
-            built for students, between classes.
-          </p>
+          <div className="flex items-center gap-4">
+            <a
+              href="/mod"
+              data-testid="footer-mod-link"
+              className="font-mono-ui text-xs text-[#5c6069] hover:text-[#5865f2] transition-colors"
+            >
+              moderator ↗
+            </a>
+            <p className="font-mono-ui text-xs text-[#5c6069]">
+              built for students, between classes.
+            </p>
+          </div>
         </div>
       </div>
     </div>

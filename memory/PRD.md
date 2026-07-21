@@ -52,3 +52,11 @@ Build a real-time web chatroom app for a college CS department called **CS Chatr
 
 ## Test Credentials
 None — nickname-only. See `/app/memory/test_credentials.md`.
+
+## Iteration 2 (2026-02) — Moderator Console
+- ✅ MOD_TOKEN env-based auth (currently `cs-mod-2026`)
+- ✅ Backend REST: POST /api/mod/verify, GET /api/mod/reports (open/resolved/all), POST /api/mod/reports/:id/resolve, POST /api/mod/reports/:id/reopen
+- ✅ SQLite migration: added `resolved`, `resolved_at`, `note` columns to reports
+- ✅ Frontend /mod route with sign-in gate (sessionStorage) + stats cards + filter tabs + resolve/reopen actions + repeat-offender highlight
+- ✅ Landing footer discoverability link "moderator ↗"
+- ✅ 13/13 new backend mod tests + 18 prior tests passing; UI verified end-to-end
