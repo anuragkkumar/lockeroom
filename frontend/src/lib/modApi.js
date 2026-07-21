@@ -31,8 +31,10 @@ export async function verifyToken(token) {
   return req('/api/mod/verify', { method: 'POST', body: { token }, token });
 }
 
-export async function fetchReports(status = 'open') {
-  return req(`/api/mod/reports?status=${encodeURIComponent(status)}&limit=200`);
+export async function fetchReports(status = 'open', { limit = 25, offset = 0 } = {}) {
+  return req(
+    `/api/mod/reports?status=${encodeURIComponent(status)}&limit=${limit}&offset=${offset}`
+  );
 }
 
 export async function resolveReport(id, note = '') {

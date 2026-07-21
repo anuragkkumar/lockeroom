@@ -1,0 +1,31 @@
+{
+  "summary": "Backlog features tested end-to-end: (1) server-side rate limiter on socket message:send — MIN_GAP (too-fast), BURST, passthrough, stranger-room applicability, disconnect-clears-bucket; (2) URL query-param sync on sidebar clicks and on direct URL entry (/chat?room=..., /chat?tab=stranger, invalid-room fallback to clean /chat); (3) moderator pagination REST (limit/offset clamping, page disjointness) and UI (mod-pagination testids, prev/next enable/disable, filter change resets page). Also ran regression on all prior backend suites. 42/42 pytest tests pass. All frontend flows verified via Playwright.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_rate_limit_and_pagination.py",
+    "/app/backend/tests/test_chatroom.py",
+    "/app/backend/tests/test_moderator.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/rate_limit_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Rate limiter uses in-memory Map keyed by socket.id. On horizontal scale (multiple Node instances behind LB), each instance has independent buckets → a client bouncing between pods effectively gets N× the quota. Acceptable for MVP; document/limit to single-instance deploy or move to Redis if scale-out becomes needed.",
+    "checkRateLimit does not add the current timestamp when it rejects, which is correct (rejection should not count towards quota). Good.",
+    "Server /api/mod/reports uses `parseInt(...) || 50` for limit — falsy fallback means limit=0 falls back to 50 (arguably unexpected). Similarly limit clamp uses Math.min(200, Math.max(1, ...)) after the || default, so 0 is treated as 'unset'. Consider using Number.isFinite() check for stricter validation, but current behavior is safe (never <1, never >200).",
+    "Moderator.jsx computes filterTotal from stats.open/resolved/total. If backend stats include reports that don't match current page slice (e.g., counts across statuses), pagination is still correct. Note that filterTotal derivation happens client-side using the top-level stats object — verified matches server-side counts in this test run.",
+    "Chat.jsx uses `useMemo(resolveInitialRoom, [])` (empty deps, disabled lint) which is fine because URL params are only consulted at mount. Good pattern for deep-linking without re-reading params on every render.",
+    "Minor: humanReadableRateError falls through with a generic 'Rate limit hit. Try again shortly.' for any unknown rule — safe default."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_rate_limit_and_pagination.py (new)"
+  ],
+  "success_rate": {"backend": "100% (42/42)", "frontend": "100% (URL sync + moderator pagination UI + rate-limit toast all verified)"},
+  "test_credentials": "MOD_TOKEN='cs-mod-2026' (backend/.env). Nickname stored in localStorage.cs_chatroom_nickname. No auth for public chat.",
+  "seed_data_creation": "Inserted 26 dummy reports directly into /app/backend/data/chat.db (reports table) via better-sqlite3 to bring total from 4 → 30 so pagination page-2 could be exercised. Reports have prefix 'TEST-SEED-REP-*' / 'TEST-SEED-RPT-*' for easy identification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rate limiter constants (server.js): MIN_GAP_MS=350, RATE_BURST={window:5000,max:5}, RATE_SUSTAINED={window:60000,max:30}. Sustained rule cannot be exercised in <30s because burst cap (5/5s) throttles the ramp; test_error_shape_documented_rules covers response shape as a proxy. Pagination page size in Moderator.jsx is 25. DB now has ~30+ reports (mostly TEST-SEED-*). URL sync tests use localStorage nickname 'qa-alice' and rely on data-testid: channel-general, channel-section-c, channel-section-p, random-stranger-btn. Mod UI testids: mod-token-input, mod-signin-btn, mod-tab-all/open/resolved, mod-pagination, mod-pagination-range, mod-page-indicator, mod-prev-page-btn, mod-next-page-btn.",
+  "rca of the issue": "N/A — feature verification iteration."
+}

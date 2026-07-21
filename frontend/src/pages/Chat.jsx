@@ -53,14 +53,19 @@ export default function Chat() {
     }
   }, [nickname, navigate]);
 
-  // Clear query params after they've been used to resolve initial room
+  // Sync URL query params to the active room
   useEffect(() => {
-    if (searchParams.get('room') || searchParams.get('tab')) {
+    if (activeRoom === STRANGER_ID) {
+      setSearchParams({ tab: 'stranger' }, { replace: true });
+    } else if (activeRoom === 'general') {
+      // Keep URL clean for the default room
       const next = new URLSearchParams();
       setSearchParams(next, { replace: true });
+    } else {
+      setSearchParams({ room: activeRoom }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeRoom]);
 
   // Socket setup
   useEffect(() => {
@@ -165,6 +170,7 @@ export default function Chat() {
   const handleSelectRoom = (roomId) => {
     setSidebarOpen(false);
     if (roomId === STRANGER_ID) {
+      if (activeRoom === STRANGER_ID) return;
       setActiveRoom(STRANGER_ID);
       return;
     }
@@ -173,15 +179,26 @@ export default function Chat() {
     joinRoom(roomId);
   };
 
+  const humanReadableRateError = (res) => {
+    if (res?.error !== 'rate_limited') return res?.error || 'Failed to send';
+    const rule = res.rule;
+    if (rule === 'too-fast') return 'Slow down — send messages a bit slower.';
+    if (rule === 'burst') return 'You are sending too fast. Wait a few seconds.';
+    if (rule === 'sustained') return 'Message limit hit. Take a short break.';
+    return 'Rate limit hit. Try again shortly.';
+  };
+
   const sendMessage = (content) => {
     const s = getSocket();
     if (activeRoom === STRANGER_ID) {
       if (strangerState !== 'matched' || !strangerRoom) return;
-      s.emit('message:send', { room: strangerRoom, content, nickname });
+      s.emit('message:send', { room: strangerRoom, content, nickname }, (res) => {
+        if (!res?.ok) toast.error(humanReadableRateError(res));
+      });
       return;
     }
     s.emit('message:send', { room: activeRoom, content, nickname }, (res) => {
-      if (!res?.ok) toast.error(res?.error || 'Failed to send');
+      if (!res?.ok) toast.error(humanReadableRateError(res));
     });
   };
 

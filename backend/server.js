@@ -122,6 +122,42 @@ function broadcastPresence(room) {
   io.to(room).emit('presence:update', { room, online: getRoomSize(room) });
 }
 
+// -------- Rate limiter (sliding window, per socket) --------
+// Rules: max 5 messages / 5s (burst), max 30 messages / 60s (sustained), min 350ms gap
+const RATE_BURST = { window: 5000, max: 5 };
+const RATE_SUSTAINED = { window: 60000, max: 30 };
+const MIN_GAP_MS = 350;
+const rateBuckets = new Map(); // socketId -> number[] (timestamps)
+
+function checkRateLimit(socketId) {
+  const now = Date.now();
+  const arr = rateBuckets.get(socketId) || [];
+  // Prune old
+  const cutoff = now - RATE_SUSTAINED.window;
+  let i = 0;
+  while (i < arr.length && arr[i] < cutoff) i++;
+  const pruned = i === 0 ? arr : arr.slice(i);
+
+  // Min gap
+  if (pruned.length > 0 && now - pruned[pruned.length - 1] < MIN_GAP_MS) {
+    return { ok: false, retryAfter: MIN_GAP_MS - (now - pruned[pruned.length - 1]), rule: 'too-fast' };
+  }
+  // Burst window
+  const burstCutoff = now - RATE_BURST.window;
+  const burstCount = pruned.filter((t) => t >= burstCutoff).length;
+  if (burstCount >= RATE_BURST.max) {
+    return { ok: false, retryAfter: RATE_BURST.window, rule: 'burst' };
+  }
+  // Sustained window
+  if (pruned.length >= RATE_SUSTAINED.max) {
+    return { ok: false, retryAfter: RATE_SUSTAINED.window, rule: 'sustained' };
+  }
+  pruned.push(now);
+  rateBuckets.set(socketId, pruned);
+  return { ok: true };
+}
+
+
 io.on('connection', (socket) => {
   const { deviceId, nickname } = socket.handshake.auth || {};
   socket.data.deviceId = deviceId || `anon-${socket.id}`;
@@ -189,6 +225,18 @@ io.on('connection', (socket) => {
       const trimmed = (content || '').toString().trim().slice(0, 2000);
       if (!trimmed) {
         cb && cb({ ok: false, error: 'empty' });
+        return;
+      }
+
+      // Rate limit BEFORE any broadcast/persist
+      const rl = checkRateLimit(socket.id);
+      if (!rl.ok) {
+        cb && cb({
+          ok: false,
+          error: 'rate_limited',
+          rule: rl.rule,
+          retryAfter: rl.retryAfter,
+        });
         return;
       }
 
@@ -349,6 +397,7 @@ io.on('connection', (socket) => {
     if (socket.data.currentRoom && PUBLIC_ROOMS_SET.has(socket.data.currentRoom)) {
       broadcastPresence(socket.data.currentRoom);
     }
+    rateBuckets.delete(socket.id);
   });
 });
 

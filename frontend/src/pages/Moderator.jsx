@@ -20,6 +20,8 @@ import {
   Copy,
   LogOut,
   Flag,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -77,6 +79,8 @@ export default function Moderator() {
   const [reports, setReports] = useState([]);
   const [stats, setStats] = useState({ total: 0, open: 0, resolved: 0 });
   const [actioningId, setActioningId] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const tryAuth = useCallback(async (t) => {
     setChecking(true);
@@ -101,9 +105,9 @@ export default function Moderator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const load = useCallback(async (s = status) => {
+  const load = useCallback(async (s = status, p = page) => {
     setLoading(true);
-    const res = await fetchReports(s);
+    const res = await fetchReports(s, { limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
     setLoading(false);
     if (!res.ok) {
       if (res.status === 401) {
@@ -117,11 +121,16 @@ export default function Moderator() {
     }
     setReports(res.data.reports || []);
     setStats(res.data.stats || { total: 0, open: 0, resolved: 0 });
-  }, [status]);
+  }, [status, page]);
 
   useEffect(() => {
-    if (authed) load(status);
-  }, [authed, status, load]);
+    if (authed) load(status, page);
+  }, [authed, status, page, load]);
+
+  // Reset to page 1 when status filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
 
   const handleResolve = async (id) => {
     setActioningId(id);
@@ -132,7 +141,7 @@ export default function Moderator() {
       return;
     }
     toast.success(`Report #${id} resolved`);
-    load(status);
+    load(status, page);
   };
 
   const handleReopen = async (id) => {
@@ -144,7 +153,7 @@ export default function Moderator() {
       return;
     }
     toast.message(`Report #${id} reopened`);
-    load(status);
+    load(status, page);
   };
 
   const handleLogout = () => {
@@ -294,7 +303,7 @@ export default function Moderator() {
           ))}
           <div className="ml-auto flex items-center gap-2 pr-2">
             <button
-              onClick={() => load(status)}
+              onClick={() => load(status, page)}
               className="text-xs font-mono-ui text-[#949ba4] hover:text-white px-2 py-1"
               data-testid="mod-refresh-btn"
             >
@@ -419,6 +428,51 @@ export default function Moderator() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {(() => {
+          const filterTotal =
+            status === 'open' ? stats.open : status === 'resolved' ? stats.resolved : stats.total;
+          const totalPages = Math.max(1, Math.ceil(filterTotal / PAGE_SIZE));
+          const from = filterTotal === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+          const to = Math.min(filterTotal, page * PAGE_SIZE);
+          if (filterTotal === 0) return null;
+          return (
+            <div
+              data-testid="mod-pagination"
+              className="mt-4 flex items-center justify-between text-xs font-mono-ui text-[#949ba4]"
+            >
+              <div data-testid="mod-pagination-range">
+                showing <span className="text-[#f2f3f5] font-bold tabular-nums">{from}–{to}</span>{' '}
+                of <span className="text-[#f2f3f5] font-bold tabular-nums">{filterTotal}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || loading}
+                  data-testid="mod-prev-page-btn"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#dbdee1] bg-[#404249] hover:bg-[#4e5058] disabled:opacity-40 disabled:hover:bg-[#404249] transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" /> prev
+                </button>
+                <span
+                  data-testid="mod-page-indicator"
+                  className="px-3 py-1.5 font-mono-ui text-[11px] tabular-nums"
+                >
+                  page <span className="text-[#f2f3f5] font-bold">{page}</span> / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || loading}
+                  data-testid="mod-next-page-btn"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#dbdee1] bg-[#404249] hover:bg-[#4e5058] disabled:opacity-40 disabled:hover:bg-[#404249] transition-colors"
+                >
+                  next <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         <p className="mt-6 text-[10px] font-mono-ui text-[#5c6069] leading-relaxed">
           Notes · Stranger sessions are ephemeral, so no message content is retained. Reports carry
