@@ -48,16 +48,25 @@ try {
   console.warn('[cs-chatroom] reports migration warning:', e.message);
 }
 
+// Migration: add message_type + media_url to messages
+try {
+  const cols = db.prepare("PRAGMA table_info(messages)").all().map((c) => c.name);
+  if (!cols.includes('message_type')) db.exec("ALTER TABLE messages ADD COLUMN message_type TEXT NOT NULL DEFAULT 'text'");
+  if (!cols.includes('media_url')) db.exec('ALTER TABLE messages ADD COLUMN media_url TEXT');
+} catch (e) {
+  console.warn('[cs-chatroom] messages migration warning:', e.message);
+}
+
 // Prepared statements
 const stmts = {
   insertMessage: db.prepare(
-    'INSERT INTO messages (room, nickname, content, created_at) VALUES (?, ?, ?, ?)'
+    'INSERT INTO messages (room, nickname, content, created_at, message_type, media_url) VALUES (?, ?, ?, ?, ?, ?)'
   ),
   latestMessages: db.prepare(
-    'SELECT id, room, nickname, content, created_at FROM messages WHERE room = ? ORDER BY created_at DESC, id DESC LIMIT ?'
+    'SELECT id, room, nickname, content, created_at, message_type, media_url FROM messages WHERE room = ? ORDER BY created_at DESC, id DESC LIMIT ?'
   ),
   messagesBefore: db.prepare(
-    'SELECT id, room, nickname, content, created_at FROM messages WHERE room = ? AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC, id DESC LIMIT ?'
+    'SELECT id, room, nickname, content, created_at, message_type, media_url FROM messages WHERE room = ? AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC, id DESC LIMIT ?'
   ),
   countAfter: db.prepare(
     'SELECT COUNT(*) as c FROM messages WHERE room = ? AND created_at > ?'
@@ -102,10 +111,25 @@ const stmts = {
   ),
 };
 
-function insertMessage(room, nickname, content) {
+function insertMessage(room, nickname, content, { messageType = 'text', mediaUrl = null } = {}) {
   const created_at = Date.now();
-  const info = stmts.insertMessage.run(room, nickname, content, created_at);
-  return { id: info.lastInsertRowid, room, nickname, content, created_at };
+  const info = stmts.insertMessage.run(
+    room,
+    nickname,
+    content || '',
+    created_at,
+    messageType,
+    mediaUrl
+  );
+  return {
+    id: info.lastInsertRowid,
+    room,
+    nickname,
+    content: content || '',
+    created_at,
+    message_type: messageType,
+    media_url: mediaUrl,
+  };
 }
 
 function getLatestMessages(room, limit = 50) {
