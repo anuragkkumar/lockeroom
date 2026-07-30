@@ -44,3 +44,11 @@ export async function resolveReport(id, note = '') {
 export async function reopenReport(id) {
   return req(`/api/mod/reports/${id}/reopen`, { method: 'POST' });
 }
+
+export async function banDevice(deviceId, reason = '') {
+  return req('/api/mod/ban', { method: 'POST', body: { deviceId, reason } });
+}
+
+export async function unbanDevice(deviceId) {
+  return req('/api/mod/unban', { method: 'POST', body: { deviceId } });
+}
