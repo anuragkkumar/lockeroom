@@ -23,7 +23,7 @@ const {
 } = require('./db');
 
 const PORT = parseInt(process.env.PORT || '8001', 10);
-const MOD_TOKEN = process.env.MOD_TOKEN || '';
+const MOD_TOKEN = (process.env.MOD_TOKEN || '').trim();
 
 // Room definitions
 const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
@@ -38,6 +38,15 @@ function isStrangerRoom(room) {
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'Lockeroom Backend API',
+    health: '/api/health',
+    rooms: '/api/rooms'
+  });
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'cs-chatroom', time: Date.now() });
@@ -65,9 +74,11 @@ function requireMod(req, res, next) {
   if (!MOD_TOKEN) {
     return res.status(503).json({ error: 'moderator disabled: MOD_TOKEN not configured' });
   }
-  const provided =
+  const provided = String(
     req.get('x-mod-token') ||
-    (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    (req.get('authorization') || '').replace(/^Bearer\s+/i, '') ||
+    ''
+  ).trim();
   if (provided !== MOD_TOKEN) {
     return res.status(401).json({ error: 'unauthorized' });
   }
@@ -75,7 +86,7 @@ function requireMod(req, res, next) {
 }
 
 app.post('/api/mod/verify', (req, res) => {
-  const provided = (req.body && req.body.token) || req.get('x-mod-token') || '';
+  const provided = String((req.body && req.body.token) || req.get('x-mod-token') || '').trim();
   if (!MOD_TOKEN) return res.status(503).json({ ok: false, error: 'mod disabled' });
   if (provided !== MOD_TOKEN) return res.status(401).json({ ok: false, error: 'invalid token' });
   res.json({ ok: true });

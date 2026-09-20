@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: lockeroom-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: free
+    envVars:
+      - key: MOD_TOKEN
+        sync: false
+    healthCheckPath: /api/health
