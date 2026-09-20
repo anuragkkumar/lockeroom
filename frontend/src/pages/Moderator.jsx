@@ -8,6 +8,9 @@ import {
   fetchReports,
   resolveReport,
   reopenReport,
+  banDevice,
+  unbanDevice,
+  fetchBannedDevices,
 } from '@/lib/modApi';
 import {
   Shield,
@@ -22,6 +25,7 @@ import {
   Flag,
   ChevronLeft,
   ChevronRight,
+  Ban,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -77,6 +81,7 @@ export default function Moderator() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('open'); // open | resolved | all
   const [reports, setReports] = useState([]);
+  const [bannedDevices, setBannedDevices] = useState(new Set());
   const [stats, setStats] = useState({ total: 0, open: 0, resolved: 0 });
   const [actioningId, setActioningId] = useState(null);
   const [page, setPage] = useState(1);
@@ -107,7 +112,10 @@ export default function Moderator() {
 
   const load = useCallback(async (s = status, p = page) => {
     setLoading(true);
-    const res = await fetchReports(s, { limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
+    const [res, bansRes] = await Promise.all([
+      fetchReports(s, { limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE }),
+      fetchBannedDevices(),
+    ]);
     setLoading(false);
     if (!res.ok) {
       if (res.status === 401) {
@@ -121,6 +129,9 @@ export default function Moderator() {
     }
     setReports(res.data.reports || []);
     setStats(res.data.stats || { total: 0, open: 0, resolved: 0 });
+    if (bansRes?.ok && bansRes.data?.bans) {
+      setBannedDevices(new Set(bansRes.data.bans.map((b) => b.device_id)));
+    }
   }, [status, page]);
 
   useEffect(() => {
@@ -153,6 +164,32 @@ export default function Moderator() {
       return;
     }
     toast.message(`Report #${id} reopened`);
+    load(status, page);
+  };
+
+  const handleBan = async (deviceId) => {
+    if (!deviceId || deviceId === 'unknown') return;
+    setActioningId(`ban-${deviceId}`);
+    const res = await banDevice(deviceId, 'Banned via moderator console');
+    setActioningId(null);
+    if (!res.ok) {
+      toast.error(res.data?.error || 'Failed to ban device');
+      return;
+    }
+    toast.success(`Device ${shortId(deviceId)} banned`);
+    load(status, page);
+  };
+
+  const handleUnban = async (deviceId) => {
+    if (!deviceId) return;
+    setActioningId(`unban-${deviceId}`);
+    const res = await unbanDevice(deviceId);
+    setActioningId(null);
+    if (!res.ok) {
+      toast.error(res.data?.error || 'Failed to unban device');
+      return;
+    }
+    toast.message(`Device ${shortId(deviceId)} unbanned`);
     load(status, page);
   };
 
@@ -365,13 +402,39 @@ export default function Moderator() {
                         {shortId(r.reported_device_id)}
                       </button>
                       <Copy className="w-3 h-3 text-[#5c6069]" />
+                      {bannedDevices.has(r.reported_device_id) ? (
+                        <button
+                          onClick={() => handleUnban(r.reported_device_id)}
+                          disabled={actioningId === `unban-${r.reported_device_id}`}
+                          data-testid={`mod-unban-btn-${r.id}`}
+                          className="ml-auto text-[10px] font-mono-ui font-bold text-[#f0b232] hover:text-white px-1.5 py-0.5 rounded border border-[#f0b232]/40 hover:bg-[#f0b232]/20 transition-colors"
+                        >
+                          unban
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleBan(r.reported_device_id)}
+                          disabled={actioningId === `ban-${r.reported_device_id}`}
+                          data-testid={`mod-ban-btn-${r.id}`}
+                          className="ml-auto text-[10px] font-mono-ui font-bold text-[#da373c] hover:text-white px-1.5 py-0.5 rounded border border-[#da373c]/40 hover:bg-[#da373c]/20 transition-colors"
+                        >
+                          ban device
+                        </button>
+                      )}
                     </div>
-                    {r.reported_device_report_count > 1 && (
-                      <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono-ui font-bold text-[#da373c] bg-[#da373c]/10 px-1.5 py-0.5 rounded">
-                        <Flag className="w-2.5 h-2.5" />
-                        {r.reported_device_report_count} reports on this device
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {bannedDevices.has(r.reported_device_id) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono-ui font-bold text-[#da373c] bg-[#da373c]/15 px-1.5 py-0.5 rounded">
+                          <Ban className="w-2.5 h-2.5" /> banned
+                        </span>
+                      )}
+                      {r.reported_device_report_count > 1 && (
+                        <div className="inline-flex items-center gap-1 text-[10px] font-mono-ui font-bold text-[#da373c] bg-[#da373c]/10 px-1.5 py-0.5 rounded">
+                          <Flag className="w-2.5 h-2.5" />
+                          {r.reported_device_report_count} reports on this device
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="col-span-3">
                     <div className="flex items-center gap-2">

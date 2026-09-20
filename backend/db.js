@@ -1,6 +1,13 @@
 const path = require('path');
 const fs = require('fs');
-const Database = require('better-sqlite3');
+
+let Database;
+try {
+  Database = require('better-sqlite3');
+} catch {
+  const { DatabaseSync } = require('node:sqlite');
+  Database = DatabaseSync;
+}
 
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -8,8 +15,13 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 const DB_PATH = path.join(DATA_DIR, 'chat.db');
 const db = new Database(DB_PATH);
 
-db.pragma('journal_mode = WAL');
-db.pragma('synchronous = NORMAL');
+if (typeof db.pragma === 'function') {
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+} else {
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA synchronous = NORMAL');
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS messages (
@@ -35,6 +47,12 @@ db.exec(`
     reported_device_id TEXT NOT NULL,
     room TEXT,
     created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS banned_devices (
+    device_id TEXT PRIMARY KEY,
+    reason TEXT,
+    banned_at INTEGER NOT NULL
   );
 `);
 
@@ -108,6 +126,19 @@ const stmts = {
   ),
   reopenReport: db.prepare(
     'UPDATE reports SET resolved = 0, resolved_at = NULL WHERE id = ?'
+  ),
+  banDevice: db.prepare(
+    `INSERT INTO banned_devices (device_id, reason, banned_at) VALUES (?, ?, ?)
+     ON CONFLICT(device_id) DO UPDATE SET reason = excluded.reason, banned_at = excluded.banned_at`
+  ),
+  unbanDevice: db.prepare(
+    'DELETE FROM banned_devices WHERE device_id = ?'
+  ),
+  isDeviceBanned: db.prepare(
+    'SELECT device_id, reason, banned_at FROM banned_devices WHERE device_id = ?'
+  ),
+  listBannedDevices: db.prepare(
+    'SELECT device_id, reason, banned_at FROM banned_devices ORDER BY banned_at DESC'
   ),
 };
 
@@ -199,6 +230,28 @@ function reopenReport(id) {
   return info.changes > 0;
 }
 
+function banDevice(deviceId, reason = '') {
+  if (!deviceId) return false;
+  stmts.banDevice.run(deviceId, (reason || '').toString().slice(0, 500), Date.now());
+  return true;
+}
+
+function unbanDevice(deviceId) {
+  if (!deviceId) return false;
+  const info = stmts.unbanDevice.run(deviceId);
+  return info.changes > 0;
+}
+
+function isDeviceBanned(deviceId) {
+  if (!deviceId) return false;
+  const row = stmts.isDeviceBanned.get(deviceId);
+  return !!row;
+}
+
+function listBannedDevices() {
+  return stmts.listBannedDevices.all();
+}
+
 module.exports = {
   db,
   insertMessage,
@@ -211,4 +264,8 @@ module.exports = {
   reportStats,
   resolveReport,
   reopenReport,
+  banDevice,
+  unbanDevice,
+  isDeviceBanned,
+  listBannedDevices,
 };

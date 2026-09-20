@@ -16,6 +16,10 @@ const {
   reportStats,
   resolveReport,
   reopenReport,
+  banDevice,
+  unbanDevice,
+  isDeviceBanned,
+  listBannedDevices,
 } = require('./db');
 
 const PORT = parseInt(process.env.PORT || '8001', 10);
@@ -32,7 +36,7 @@ function isStrangerRoom(room) {
 
 // -------- Express app --------
 const app = express();
-app.use(cors({ origin: '*', credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => {
@@ -101,16 +105,43 @@ app.post('/api/mod/reports/:id/reopen', requireMod, (req, res) => {
   res.json({ ok: true, id });
 });
 
+app.post('/api/mod/ban', requireMod, (req, res) => {
+  const { deviceId, reason } = req.body || {};
+  if (!deviceId) return res.status(400).json({ ok: false, error: 'deviceId required' });
+  banDevice(deviceId, reason || 'Banned by moderator');
+  // Disconnect any active sockets belonging to this device
+  for (const [, s] of io.sockets.sockets) {
+    if (s.data?.deviceId === deviceId) {
+      s.emit('banned', { error: 'device_banned', reason: reason || 'Banned by moderator' });
+      s.disconnect(true);
+    }
+  }
+  res.json({ ok: true, deviceId });
+});
+
+app.post('/api/mod/unban', requireMod, (req, res) => {
+  const { deviceId } = req.body || {};
+  if (!deviceId) return res.status(400).json({ ok: false, error: 'deviceId required' });
+  const ok = unbanDevice(deviceId);
+  res.json({ ok, deviceId });
+});
+
+app.get('/api/mod/bans', requireMod, (_req, res) => {
+  const bans = listBannedDevices();
+  res.json({ bans });
+});
+
 // -------- HTTP + Socket.IO --------
 const server = http.createServer(app);
 const io = new Server(server, {
   path: '/api/socket.io/',
-  cors: { origin: '*', methods: ['GET', 'POST'], credentials: true },
+  cors: { origin: (origin, callback) => callback(null, true), methods: ['GET', 'POST'], credentials: true },
 });
 
 // State
 const waitingQueue = []; // [{ socketId, deviceId, nickname }]
 const strangerPairs = new Map(); // socket.id -> { room, partnerId }
+const recentStrangerPartners = new Map(); // socket.id -> { partnerDeviceId, room, ts }
 
 function getRoomSize(room) {
   const s = io.sockets.adapter.rooms.get(room);
@@ -160,7 +191,13 @@ function checkRateLimit(socketId) {
 
 io.on('connection', (socket) => {
   const { deviceId, nickname } = socket.handshake.auth || {};
-  socket.data.deviceId = deviceId || `anon-${socket.id}`;
+  const devId = deviceId || `anon-${socket.id}`;
+  if (isDeviceBanned(devId)) {
+    socket.emit('banned', { error: 'device_banned', reason: 'Device is banned by moderator' });
+    socket.disconnect(true);
+    return;
+  }
+  socket.data.deviceId = devId;
   socket.data.nickname = (nickname || 'anonymous').toString().slice(0, 32);
   socket.data.currentRoom = null;
 
@@ -225,6 +262,11 @@ io.on('connection', (socket) => {
       const trimmed = (content || '').toString().trim().slice(0, 2000);
       if (!trimmed) {
         cb && cb({ ok: false, error: 'empty' });
+        return;
+      }
+
+      if (isDeviceBanned(socket.data.deviceId)) {
+        cb && cb({ ok: false, error: 'device_banned' });
         return;
       }
 
@@ -308,12 +350,27 @@ io.on('connection', (socket) => {
     strangerPairs.delete(sid);
 
     const partner = io.sockets.sockets.get(partnerId);
+    const me = io.sockets.sockets.get(sid);
+
+    // Save recent partner for both sides so either can report even after separation
+    if (me && partner) {
+      recentStrangerPartners.set(sid, {
+        partnerDeviceId: partner.data?.deviceId || 'unknown',
+        room,
+        ts: Date.now(),
+      });
+      recentStrangerPartners.set(partnerId, {
+        partnerDeviceId: me.data?.deviceId || 'unknown',
+        room,
+        ts: Date.now(),
+      });
+    }
+
     if (partner) {
       partner.leave(room);
       strangerPairs.delete(partnerId);
       partner.emit('stranger:left', { room, reason });
     }
-    const me = io.sockets.sockets.get(sid);
     if (me) me.leave(room);
   }
 
@@ -325,11 +382,20 @@ io.on('connection', (socket) => {
   function tryMatch() {
     while (waitingQueue.length >= 2) {
       const a = waitingQueue.shift();
-      const b = waitingQueue.shift();
+      // Ensure b is a different socket and distinct device
+      const bIdx = waitingQueue.findIndex(
+        (e) => e.socketId !== a.socketId && e.deviceId !== a.deviceId
+      );
+      if (bIdx === -1) {
+        // No suitable distinct partner available right now; put a back and stop
+        waitingQueue.unshift(a);
+        break;
+      }
+      const [b] = waitingQueue.splice(bIdx, 1);
+
       const sa = io.sockets.sockets.get(a.socketId);
       const sb = io.sockets.sockets.get(b.socketId);
       if (!sa || !sb) {
-        // If one is missing, put the other back
         if (sa) waitingQueue.unshift(a);
         if (sb) waitingQueue.unshift(b);
         continue;
@@ -345,6 +411,11 @@ io.on('connection', (socket) => {
   }
 
   socket.on('stranger:find', ({ nickname } = {}, cb) => {
+    if (isDeviceBanned(socket.data.deviceId)) {
+      cb && cb({ ok: false, error: 'device_banned' });
+      return;
+    }
+
     // Leave any current stranger pair first
     if (strangerPairs.has(socket.id)) cleanupPair(socket.id, 'skipped');
     removeFromQueue(socket.id);
@@ -362,7 +433,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('stranger:skip', (_p, cb) => {
+    if (isDeviceBanned(socket.data.deviceId)) {
+      cb && cb({ ok: false, error: 'device_banned' });
+      return;
+    }
+
     cleanupPair(socket.id, 'skipped');
+    removeFromQueue(socket.id); // Ensure removed before re-entering queue
     // Re-enter queue
     waitingQueue.push({
       socketId: socket.id,
@@ -380,14 +457,29 @@ io.on('connection', (socket) => {
   });
 
   socket.on('stranger:report', ({ room } = {}, cb) => {
+    let reportedDeviceId = null;
+    let reportRoom = room;
+
     const pair = strangerPairs.get(socket.id);
-    if (!pair) {
+    if (pair) {
+      const partner = io.sockets.sockets.get(pair.partnerId);
+      reportedDeviceId = partner?.data?.deviceId || 'unknown';
+      reportRoom = room || pair.room;
+    } else {
+      // Fallback to recently disconnected partner (within 10 minutes)
+      const recent = recentStrangerPartners.get(socket.id);
+      if (recent && Date.now() - recent.ts < 10 * 60 * 1000) {
+        reportedDeviceId = recent.partnerDeviceId;
+        reportRoom = room || recent.room;
+      }
+    }
+
+    if (!reportedDeviceId) {
       cb && cb({ ok: false, error: 'not in stranger chat' });
       return;
     }
-    const partner = io.sockets.sockets.get(pair.partnerId);
-    const reportedDeviceId = partner?.data?.deviceId || 'unknown';
-    insertReport(socket.data.deviceId, reportedDeviceId, room || pair.room);
+
+    insertReport(socket.data.deviceId, reportedDeviceId, reportRoom);
     cb && cb({ ok: true });
   });
 
@@ -398,6 +490,11 @@ io.on('connection', (socket) => {
       broadcastPresence(socket.data.currentRoom);
     }
     rateBuckets.delete(socket.id);
+    // Expire old entries from recentStrangerPartners
+    const cutoff = Date.now() - 10 * 60 * 1000;
+    for (const [sid, item] of recentStrangerPartners) {
+      if (item.ts < cutoff) recentStrangerPartners.delete(sid);
+    }
   });
 });
 

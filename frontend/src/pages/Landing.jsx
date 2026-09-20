@@ -4,6 +4,7 @@ import { Hash, Users, Dice5, ArrowRight, MessageSquareText } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getNickname, setNickname, getDeviceId } from '@/lib/identity';
+import { disconnectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 
 const HERO_IMAGE =
@@ -62,7 +63,16 @@ export default function Landing() {
   }, []);
 
   const enterChat = (target) => {
+    const cleaned = nick.trim().replace(/\s+/g, ' ').slice(0, 24);
     const existing = getNickname();
+
+    if (cleaned.length >= 2 && cleaned !== existing) {
+      setNickname(cleaned);
+      disconnectSocket();
+      navigate(buildChatPath(target));
+      return;
+    }
+
     if (existing) {
       navigate(buildChatPath(target));
       return;
@@ -82,6 +92,10 @@ export default function Landing() {
     if (cleaned.length < 2) {
       toast.error('Nickname must be at least 2 characters');
       return;
+    }
+    const existing = getNickname();
+    if (existing !== cleaned) {
+      disconnectSocket();
     }
     setNickname(cleaned);
     navigate(buildChatPath(pendingTarget));

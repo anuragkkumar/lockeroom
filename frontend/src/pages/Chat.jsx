@@ -126,10 +126,14 @@ export default function Chat() {
             ? 'Stranger disconnected'
             : 'Stranger left';
       toast.message(msg);
-      setStrangerState('idle');
-      setStrangerRoom(null);
-      setStrangerPartner(null);
-      setStrangerMessages([]);
+      setStrangerState('partner_left');
+    };
+
+    const onBanned = ({ reason }) => {
+      toast.error(reason || 'Your device has been banned by a moderator.');
+      clearNickname();
+      disconnectSocket();
+      navigate('/', { replace: true });
     };
 
     s.on('connect', onConnect);
@@ -139,6 +143,7 @@ export default function Chat() {
     s.on('presence:update', onPresence);
     s.on('stranger:matched', onStrangerMatched);
     s.on('stranger:left', onStrangerLeft);
+    s.on('banned', onBanned);
 
     if (s.connected) onConnect();
 
@@ -150,6 +155,12 @@ export default function Chat() {
       s.off('presence:update', onPresence);
       s.off('stranger:matched', onStrangerMatched);
       s.off('stranger:left', onStrangerLeft);
+      s.off('banned', onBanned);
+
+      if (activeRoomRef.current === STRANGER_ID) {
+        s.emit('stranger:leave', {});
+        s.emit('stranger:cancel', {});
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -173,6 +184,20 @@ export default function Chat() {
       if (activeRoom === STRANGER_ID) return;
       setActiveRoom(STRANGER_ID);
       return;
+    }
+    // Clean up stranger session if navigating away to another room
+    if (activeRoom === STRANGER_ID) {
+      const s = getSocket();
+      if (strangerState === 'searching') {
+        s.emit('stranger:cancel', {});
+        setStrangerState('idle');
+      } else if (strangerState === 'matched' || strangerState === 'partner_left') {
+        s.emit('stranger:leave', {});
+        setStrangerState('idle');
+        setStrangerRoom(null);
+        setStrangerPartner(null);
+        setStrangerMessages([]);
+      }
     }
     if (roomId === activeRoom) return;
     setActiveRoom(roomId);

@@ -60,6 +60,31 @@ export default function StrangerPanel({
             </button>
           </div>
         )}
+        {state === 'partner_left' && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onReport}
+              data-testid="stranger-report-btn"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#da373c] hover:bg-[#da373c]/10 transition-colors"
+            >
+              <Flag className="w-3.5 h-3.5" /> report
+            </button>
+            <button
+              onClick={onFind}
+              data-testid="stranger-next-btn"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold bg-[#5865f2] hover:bg-[#4752c4] text-white transition-colors"
+            >
+              <Search className="w-3.5 h-3.5" /> find next
+            </button>
+            <button
+              onClick={onLeave}
+              data-testid="stranger-leave-btn"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#949ba4] hover:text-white hover:bg-[#404249] transition-colors"
+            >
+              <X className="w-3.5 h-3.5" /> leave
+            </button>
+          </div>
+        )}
         {state === 'searching' && (
           <button
             onClick={onCancel}
@@ -122,7 +147,7 @@ export default function StrangerPanel({
         </div>
       )}
 
-      {state === 'matched' && (
+      {(state === 'matched' || state === 'partner_left') && (
         <>
           <MessageFeed
             messages={messages}
@@ -131,11 +156,35 @@ export default function StrangerPanel({
             loadingOlder={false}
             hasMore={false}
           />
-          <MessageInput
-            placeholder={`Message @${partner || 'stranger'}`}
-            onSend={onSend}
-            disabled={false}
-          />
+          {state === 'partner_left' ? (
+            <div className="p-4 bg-[#2b2d31] border-t border-[#1e1f22] flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+              <div className="text-[#949ba4] font-mono-ui text-xs">
+                <span className="text-[#f2f3f5] font-bold">Stranger disconnected.</span> You can report or start a new match.
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onReport}
+                  data-testid="stranger-bottom-report-btn"
+                  className="px-3 py-1.5 rounded-md text-xs font-mono-ui font-bold text-[#da373c] hover:bg-[#da373c]/10 transition-colors"
+                >
+                  <Flag className="w-3.5 h-3.5 inline mr-1" /> report
+                </button>
+                <button
+                  onClick={onFind}
+                  data-testid="stranger-bottom-next-btn"
+                  className="px-4 py-1.5 rounded-md text-xs font-mono-ui font-bold bg-[#5865f2] hover:bg-[#4752c4] text-white transition-colors"
+                >
+                  find next stranger →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <MessageInput
+              placeholder={`Message @${partner || 'stranger'}`}
+              onSend={onSend}
+              disabled={false}
+            />
+          )}
         </>
       )}
     </div>

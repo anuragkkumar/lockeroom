@@ -1,4 +1,5 @@
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL =
+  (process.env.REACT_APP_BACKEND_URL || '').replace(/\/+$/, '') || 'http://localhost:8001';
 
 const KEY = 'cs_chatroom_mod_token';
 
@@ -51,4 +52,8 @@ export async function banDevice(deviceId, reason = '') {
 
 export async function unbanDevice(deviceId) {
   return req('/api/mod/unban', { method: 'POST', body: { deviceId } });
+}
+
+export async function fetchBannedDevices() {
+  return req('/api/mod/bans');
 }

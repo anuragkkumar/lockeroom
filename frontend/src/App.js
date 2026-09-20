@@ -8,10 +8,9 @@ import { Toaster } from 'sonner';
 import '@/App.css';
 
 function RequireNickname({ children }) {
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (!getNickname()) navigate('/', { replace: true });
-  }, [navigate]);
+  if (!getNickname()) {
+    return <Navigate to="/" replace />;
+  }
   return children;
 }
 
