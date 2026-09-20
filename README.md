@@ -17,7 +17,7 @@ npm start
 - Socket.IO path: `/api/socket.io/`
 - Default environment variables are in `backend/.env`:
   - `PORT=8001`
-  - `MOD_TOKEN=cs-mod-2026`
+  - `MOD_TOKEN=<set your secret token>`
 
 Run automated verification tests:
 ```bash
@@ -52,7 +52,7 @@ npm start
    - Server-side sliding window (min 350ms gap, 5 msgs / 5s burst, 30 msgs / 60s sustained).
    - Instant reporting for abusive strangers.
 5. **Moderator Portal (`/mod`)**:
-   - Authenticated console (Token: `cs-mod-2026`).
+   - Authenticated console (Token set via `MOD_TOKEN` environment variable).
    - Review reported sessions, repeat offender tracking, resolve/reopen reports, and ban offending device IDs.
 
 ---

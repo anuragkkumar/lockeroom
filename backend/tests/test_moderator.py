@@ -14,7 +14,7 @@ import socketio
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 assert BASE_URL, "REACT_APP_BACKEND_URL is required"
 
-MOD_TOKEN = "cs-mod-2026"
+MOD_TOKEN = os.environ.get("MOD_TOKEN", "test-token")
 SOCKET_PATH = "/api/socket.io/"
 
 

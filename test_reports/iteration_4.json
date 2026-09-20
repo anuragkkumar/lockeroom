@@ -22,7 +22,7 @@
     "/app/backend/tests/test_rate_limit_and_pagination.py (new)"
   ],
   "success_rate": {"backend": "100% (42/42)", "frontend": "100% (URL sync + moderator pagination UI + rate-limit toast all verified)"},
-  "test_credentials": "MOD_TOKEN='cs-mod-2026' (backend/.env). Nickname stored in localStorage.cs_chatroom_nickname. No auth for public chat.",
+  "test_credentials": "MOD_TOKEN='<MOD_TOKEN env var>' (backend/.env). Nickname stored in localStorage.cs_chatroom_nickname. No auth for public chat.",
   "seed_data_creation": "Inserted 26 dummy reports directly into /app/backend/data/chat.db (reports table) via better-sqlite3 to bring total from 4 → 30 so pagination page-2 could be exercised. Reports have prefix 'TEST-SEED-REP-*' / 'TEST-SEED-RPT-*' for easy identification.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
