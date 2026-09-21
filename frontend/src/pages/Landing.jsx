@@ -143,7 +143,7 @@ export default function Landing() {
             >
               a chatroom<br />
               <span className="text-[#949ba4]">between</span> classes.<br />
-              <span className="text-[#23a559]">no</span> accounts. no fuss.
+              <span className="text-[#23a559]">no</span> account. no login.
             </h1>
             <p className="mt-6 text-[#b5bac1] text-base md:text-lg leading-relaxed max-w-xl">
               Pick a nickname, drop into your section&apos;s channel, DM a random stranger, or lurk in{' '}
@@ -254,20 +254,11 @@ export default function Landing() {
 
         <div className="mt-20 pt-8 border-t border-[#1e1f22] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <p className="font-mono-ui text-xs text-[#5c6069]">
-            &copy; cs.chatroom · no accounts · no tracking · just chat
+            &copy; cs.chatroom · no account · no tracking · just chat
           </p>
-          <div className="flex items-center gap-4">
-            <a
-              href="/mod"
-              data-testid="footer-mod-link"
-              className="font-mono-ui text-xs text-[#5c6069] hover:text-[#5865f2] transition-colors"
-            >
-              moderator ↗
-            </a>
-            <p className="font-mono-ui text-xs text-[#5c6069]">
-              built for students, between classes.
-            </p>
-          </div>
+          <p className="font-mono-ui text-xs text-[#5c6069]">
+            built for students, between classes.
+          </p>
         </div>
       </div>
     </div>
