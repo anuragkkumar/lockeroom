@@ -142,6 +142,22 @@ app.get('/api/mod/bans', requireMod, (_req, res) => {
   res.json({ bans });
 });
 
+app.get('/api/mod/stats', requireMod, (_req, res) => {
+  const totalOnline = io.sockets.sockets.size;
+  const perRoom = {};
+  for (const room of PUBLIC_ROOMS) {
+    perRoom[room] = getRoomSize(room);
+  }
+  // Count active stranger pairs
+  const strangerActive = strangerPairs.size; // each side stored separately
+  const strangerSearching = waitingQueue.length;
+  res.json({
+    totalOnline,
+    perRoom,
+    stranger: { paired: Math.floor(strangerActive / 2), searching: strangerSearching },
+  });
+});
+
 // -------- HTTP + Socket.IO --------
 const server = http.createServer(app);
 const io = new Server(server, {

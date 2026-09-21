@@ -11,6 +11,7 @@ import {
   banDevice,
   unbanDevice,
   fetchBannedDevices,
+  fetchLiveStats,
 } from '@/lib/modApi';
 import {
   Shield,
@@ -26,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Ban,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -85,6 +87,7 @@ export default function Moderator() {
   const [stats, setStats] = useState({ total: 0, open: 0, resolved: 0 });
   const [actioningId, setActioningId] = useState(null);
   const [page, setPage] = useState(1);
+  const [liveStats, setLiveStats] = useState(null);
   const PAGE_SIZE = 25;
 
   const tryAuth = useCallback(async (t) => {
@@ -142,6 +145,19 @@ export default function Moderator() {
   useEffect(() => {
     setPage(1);
   }, [status]);
+
+  // Poll live viewer stats every 10 seconds
+  useEffect(() => {
+    if (!authed) return;
+    let cancelled = false;
+    const poll = async () => {
+      const res = await fetchLiveStats();
+      if (!cancelled && res.ok) setLiveStats(res.data);
+    };
+    poll();
+    const interval = setInterval(poll, 10000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [authed]);
 
   const handleResolve = async (id) => {
     setActioningId(id);
@@ -308,7 +324,67 @@ export default function Moderator() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 md:px-8 py-8">
-        {/* Stats */}
+        {/* Live Viewers */}
+        {liveStats && (
+          <div className="mb-6 rounded-lg border border-[#1e1f22] bg-[#2b2d31] p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-[#5865f2]" />
+              <span className="font-mono-ui text-sm font-bold text-[#f2f3f5]">
+                live viewers
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#23a559]/20 text-[#23a559] font-mono-ui text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-[#23a559] animate-pulse" />
+                {liveStats.totalOnline} online
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.entries(liveStats.perRoom)
+                .filter(([, count]) => count > 0)
+                .sort(([, a], [, b]) => b - a)
+                .map(([room, count]) => (
+                  <div
+                    key={room}
+                    className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1e1f22]"
+                  >
+                    <span className="font-mono-ui text-xs text-[#b5bac1]">
+                      #{room}
+                    </span>
+                    <span className="font-mono-ui text-xs font-bold text-[#f2f3f5]">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              {liveStats.stranger?.paired > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1e1f22]">
+                  <span className="font-mono-ui text-xs text-[#b5bac1]">
+                    stranger (paired)
+                  </span>
+                  <span className="font-mono-ui text-xs font-bold text-[#f2f3f5]">
+                    {liveStats.stranger.paired * 2}
+                  </span>
+                </div>
+              )}
+              {liveStats.stranger?.searching > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 rounded-md bg-[#1e1f22]">
+                  <span className="font-mono-ui text-xs text-[#b5bac1]">
+                    stranger (searching)
+                  </span>
+                  <span className="font-mono-ui text-xs font-bold text-[#f0b232]">
+                    {liveStats.stranger.searching}
+                  </span>
+                </div>
+              )}
+            </div>
+            {Object.values(liveStats.perRoom).every((c) => c === 0) &&
+              (!liveStats.stranger?.paired && !liveStats.stranger?.searching) && (
+              <p className="mt-3 font-mono-ui text-xs text-[#949ba4]">
+                No users in any room right now.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Report Stats */}
         <div className="grid grid-cols-3 gap-3">
           <StatCard label="total reports" value={stats.total} tone="neutral" />
           <StatCard label="open" value={stats.open} tone="open" />

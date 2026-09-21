@@ -57,3 +57,7 @@ export async function unbanDevice(deviceId) {
 export async function fetchBannedDevices() {
   return req('/api/mod/bans');
 }
+
+export async function fetchLiveStats() {
+  return req('/api/mod/stats');
+}
